@@ -2,7 +2,7 @@ class CreatePolytagTables < ActiveRecord::Migration
   def self.up
     # Create the tags table
     create_table :_polytags do |t|
-      t.string :category
+      t.string :category, null: true, default: nil
       t.string :name
       t.timestamps
     end
@@ -10,7 +10,7 @@ class CreatePolytagTables < ActiveRecord::Migration
     # Create the relations table
     create_table :_polytag_relations do |t|
       t.belongs_to :tagged, polymorphic: true, index: true
-      t.belongs_to :_polytags, index: true
+      t.belongs_to :_polytag, index: true
       t.timestamps
     end
 

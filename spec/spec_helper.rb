@@ -1,9 +1,9 @@
 SPEC_DIR = File.dirname(__FILE__)
 GEM_DIR  = File.dirname(SPEC_DIR)
+
 # Load dependencies
 require 'rspec/rails/extensions/active_record/base'
 require 'active_record'
-require 'awesome_print'
 
 # Load in the support for AR
 require 'support/active_record'

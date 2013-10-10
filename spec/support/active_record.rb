@@ -1,4 +1,6 @@
 ActiveRecord::Base.establish_connection adapter: "sqlite3", database: ":memory:"
+# ActiveRecord::Base.connection.disable_query_cache!
+# ActiveRecord::Base.logger = Logger.new(STDOUT)
 
 # Where is the migration file
 migration_path = 'lib/generators/polytag/install/templates'

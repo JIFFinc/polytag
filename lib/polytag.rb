@@ -1,31 +1,33 @@
 require "polytag/version"
 require "polytag/tag"
+require "polytag/tag_relation"
 
 module Polytag
   def self.included(base)
     base.extend(ClassMethods)
-    base.has_many :tags, through: :_polytag_relations, class_name: 'Polytag::Tag'
-    base.has_many :_polytag_relations, as: :tagged, class_name: 'Polytag::TagRelation'
+    base.has_many :_polytag_relations, as: :tagged, class_name: '::Polytag::TagRelation'
+    base.has_many :_polytags, through: :_polytag_relations, class_name: '::Polytag::Tag'
     base.__send__(:alias_method, :tag_relations, :_polytag_relations)
+    base.__send__(:alias_method, :tags, :_polytags)
   end
 
   def add_tag(tag)
-    tags.first_or_initialize(name: tag, category: self.class.polytag_category)
+    tags << tags.where(name: tag, category: self.class.polytag_category).first_or_initialize
   end
 
   def add_tag!(tag)
-    tags.first_or_create(name: tag, category: self.class.polytag_category)
+    tags << tags.where(name: tag, category: self.class.polytag_category).first_or_create
   end
 
   def remove_tag!(tag)
     tag_id = tags.where(name: tag, category: self.class.polytag_category).first.id
-    tag_relations.where("_polytags.id = ?", tag_id).destroy
+    tag_relations.where("_polytag_relations._polytag_id = ?", tag_id).delete_all
   end
 
   module ClassMethods
 
     # Set the category for the model
-    def polytag_category(category)
+    def polytag_category(category = false)
       category ? @category = category : @category
     end
 
