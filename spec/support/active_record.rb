@@ -10,8 +10,14 @@ require(migration_file)
 # Run the migration file
 CreatePolytagTables.up
 
-# Run a custom migration
-ActiveRecord::Migration.create_table :test_taggables do |t|
+[:ones, :twos, :threes, :fours].each do |table|
+  ActiveRecord::Migration.create_table "test_taggable_#{table}" do |t|
+    t.string :name
+    t.timestamps
+  end
+end
+
+ActiveRecord::Migration.create_table :owners do |t|
   t.string :name
   t.timestamps
 end

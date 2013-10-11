@@ -1,52 +1,58 @@
 require "polytag/version"
 require "polytag/tag"
+require "polytag/tag_group"
 require "polytag/tag_relation"
 
 module Polytag
   def self.included(base)
     base.extend(ClassMethods)
-    base.has_many :_polytag_relations, as: :tagged, class_name: '::Polytag::TagRelation'
-    base.has_many :_polytags, through: :_polytag_relations, class_name: '::Polytag::Tag'
-    base.__send__(:alias_method, :tag_relations, :_polytag_relations)
-    base.__send__(:alias_method, :tags, :_polytags)
+    base.has_many :polytag_tag_relations, as: :tagged, class_name: '::Polytag::TagRelation'
+    base.has_many :polytag_tags, through: :polytag_tag_relations, class_name: '::Polytag::Tag'
+    base.__send__(:alias_method, :tag_relations, :polytag_tag_relations)
+    base.__send__(:alias_method, :tags, :polytag_tags)
   end
 
-  def add_tag(tag)
-    tags << tags.where(name: tag, category: self.class.polytag_category).first_or_initialize
+  def tag_group(tag_group = {})
+    tag_group.empty? ? @__polytag_tag_group__ : @__polytag_tag_group__ = Polytag::TagGroup.search_by_hash(tag_group).first_or_create
   end
 
-  def add_tag!(tag)
-    tags << tags.where(name: tag, category: self.class.polytag_category).first_or_create
+  def add_tag(tag, _tag_group = {})
+    tags << tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first_or_initialize
   end
 
-  def remove_tag!(tag)
-    tag_id = tags.where(name: tag, category: self.class.polytag_category).first.id
-    tag_relations.where("_polytag_relations._polytag_id = ?", tag_id).delete_all
+  def add_tag!(tag, _tag_group = {})
+    tags << tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first_or_create
+  end
+
+  def remove_tag!(tag, _tag_group = {})
+    tag_id = tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first.try(:id)
+    tag_relations.where("polytag_tag_relations.polytag_tag_id = ?", tag_id).delete_all
   end
 
   module ClassMethods
 
-    # Set the category for the model
-    def polytag_category(category = false)
-      category ? @category = category : @category
-    end
-
-    # Get records on a single tag
-    def has_tag(tag)
-      tag_query = ["_polytags.name = '#{tag}'"]
-      tag_query << "_polytags.category = '#{category}'" if category
-
-      tag = Polytag::Tag.select('_polytag_id.id').where(tag_query.join('&&')).first.id
-      includes(:polytag_relations).where("_polytag_relations._polytag_id = '#{id}'")
-    end
-
-    # Get records against multiple tags
+    # Get records with tags
     def has_tags(*tags)
-      tag_query = ["_polytags.name IN (?)"]
-      tag_query << "_polytags.category = '#{category}'" if category
+      includes(polytag_tag_relations: :polytag_tag).references(:polytag_tags).where("polytag_tags.name IN (?)", tags).group("#{table_name}.id")
+    end
 
-      tags = Polytag::Tag.select('_polytag_id.id').where(tag_query.join('&&'), tags).map(&:id)
-      includes(:polytag_relations).where("_polytag_relations._polytag_id IN (?)", tags).group("#{table_name}.id")
+    alias_method :has_tag, :has_tags
+
+    def in_tag_group(_tag_group = {})
+      if _tag_group[:group_ids]
+        tag_groups = _tag_group[:group_ids]
+      else
+        tag_groups = Polytag::TagGroup.select('polytag_tag_groups.id').search_by_hash(_tag_group).map{ |tg| tg.try(:id) }.flatten
+      end
+
+      return tag_groups if _tag_group[:multi]
+
+      includes(polytag_tag_relations: :polytag_tag).references(:polytag_tags).where('polytag_tags.polytag_tag_group_id IN (?)', tag_groups)
+    end
+
+    def in_tag_groups(*tag_groups)
+      tag_groups = tag_groups.map{ |tg| in_tag_group(tg.merge(multi: true)) }.flatten.compact
+      in_tag_group(group_ids: tag_groups)
     end
 
     # @TODO: Implement results must be connected to all tags

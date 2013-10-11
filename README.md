@@ -1,6 +1,8 @@
 # Polytag
 
-TODO: Write a gem description
+![CircleCI Build Status](https://circleci.com/gh/JIFFinc/polytag.png)
+
+Adds the ability to easily add tags with optional tag groups to models.
 
 ## Installation
 
@@ -18,7 +20,7 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Please see specs in the meantime.
 
 ## Contributing
 
