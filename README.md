@@ -1,6 +1,6 @@
 # Polytag
 
-TODO: Write a gem description
+Adds the ability to easily add tags with optional tag groups to models.
 
 ## Installation
 
@@ -18,7 +18,7 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Please see specs in the meantime.
 
 ## Contributing
 
