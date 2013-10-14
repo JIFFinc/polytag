@@ -8,7 +8,7 @@ describe "Create a a model with tags and query for them" do
       klass = TestTaggableThree.create!(name: "test_#{Time.now}")
       klass.tag_group(name: 'Apple')
       entropy = ('A'..'E').to_a.shuffle.sample((2..3).to_a.sample)
-      klass.add_tags!(*entropy)
+      klass.add_tags!(*entropy.concat(%w(A)))
       klass
     end
   end
@@ -37,6 +37,8 @@ describe "Create a a model with tags and query for them" do
 
     it "Should not find our `test_taggable` model in the `Apple` tag_group" do
       TestTaggableThree.in_tag_group(name: 'Apple').should_not include(test_taggable)
+      TestTaggableThree.in_tag_group(name: 'Apple').should_not be_empty
+      TestTaggableThree.in_tag_group(name: 'Apple').count.should == 6
     end
 
     it "Should not find our `test_taggable` model in the `Apple` tag_group even if it shares a tag name" do

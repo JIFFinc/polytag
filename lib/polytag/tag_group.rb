@@ -33,6 +33,10 @@ class Polytag::TagGroup < ActiveRecord::Base
 
       # Query by tag group name
       conditions.merge!(name: "#{hash[:name]}") if hash[:name]
+
+      # Query by tag group id
+      conditions.merge!(id: hash[:id]) if hash[:id]
+
       where(conditions)
     end
 
