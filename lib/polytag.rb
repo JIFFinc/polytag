@@ -12,8 +12,16 @@ module Polytag
     base.__send__(:alias_method, :tags, :polytag_tags)
   end
 
-  def tag_group(tag_group = {})
-    tag_group.empty? ? @__polytag_tag_group__ : @__polytag_tag_group__ = Polytag::TagGroup.search_by_hash(tag_group).first_or_create
+  def tag_group(_tag_group = nil)
+    @__polytag_tag_group_hash__ ||= {}
+
+    if _tag_group
+      @__polytag_tag_group_hash__.merge!(_tag_group)
+      @__polytag_tag_group__ = Polytag::TagGroup.search_by_hash(@__polytag_tag_group_hash__).first_or_create
+    else
+      @__polytag_tag_group_hash__ = {} if _tag_group.is_a?(Hash) && _tag_group.empty?
+      @__polytag_tag_group__
+    end
   end
 
   def add_tag(tag, _tag_group = {})
@@ -22,6 +30,16 @@ module Polytag
 
   def add_tag!(tag, _tag_group = {})
     tags << tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first_or_create
+  end
+
+  def add_tags(*tags)
+    _tag_group = tags.pop if tags.last.is_a?(Hash)
+    tags.map { |x| add_tag(x, _tag_group || P{}) }
+  end
+
+  def add_tags!(*tags)
+    _tag_group = tags.pop if tags.last.is_a?(Hash)
+    tags.map { |x| add_tag!(x, _tag_group || {}) }
   end
 
   def remove_tag!(tag, _tag_group = {})

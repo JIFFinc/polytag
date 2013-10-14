@@ -3,11 +3,12 @@ require 'spec_helper'
 describe "Create a a model with tags and query for them" do
 
   # Create some random models with tags
-  let(:sample_classes) do
+  let!(:sample_classes) do
     (0..5).to_a.map do |t|
       klass = TestTaggableThree.create!(name: "test_#{Time.now}")
       klass.tag_group(name: 'Apple')
-      klass.add_tag!(*('A'..'E').shuffle.sample((2..3).sample))
+      entropy = ('A'..'E').to_a.shuffle.sample((2..3).to_a.sample)
+      klass.add_tags!(*entropy)
       klass
     end
   end
