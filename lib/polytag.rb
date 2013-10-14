@@ -7,10 +7,18 @@ require "polytag/tag_relation"
 module Polytag
   def self.included(base)
     base.extend(ClassMethods)
-    base.has_many :polytag_tag_relations, as: :tagged, class_name: '::Polytag::TagRelation'
-    base.has_many :polytag_tags, through: :polytag_tag_relations, class_name: '::Polytag::Tag'
-    base.__send__(:alias_method, :tag_relations, :polytag_tag_relations) unless base.method_defined?(:tag_relations)
-    base.__send__(:alias_method, :tags, :polytag_tags) unless base.method_defined?(:tags)
+    base.has_many :polytag_tag_relations, class_name: '::Polytag::TagRelation',
+                                          as: :tagged
+
+    base.has_many :tag_relations, class_name: '::Polytag::TagRelation',
+                                  as: :tagged
+
+    base.has_many :polytag_tags, class_name: '::Polytag::Tag',
+                                 through: :polytag_tag_relations
+
+    base.has_many :tags, class_name: '::Polytag::Tag',
+                         through: :polytag_tag_relations,
+                         source: :polytag_tag
   end
 
   def tag_group(_tag_group = nil)

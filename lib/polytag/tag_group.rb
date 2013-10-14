@@ -1,11 +1,15 @@
 class Polytag::TagGroup < ActiveRecord::Base
   self.table_name = :polytag_tag_groups
+
   has_many :polytag_tag, class_name: '::Polytag::Tag',
                          foreign_key: :polytag_tag_group_id,
                          dependent: :destroy
 
+  has_many :tag, class_name: '::Polytag::Tag',
+                 foreign_key: :polytag_tag_group_id,
+                 dependent: :destroy
+
   belongs_to :owner, polymorphic: true
-  alias_method :tag, :polytag_tag
 
   # Cleanup tag if there are
   # no more relations left on the tag
