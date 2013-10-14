@@ -34,7 +34,7 @@ module Polytag
 
   def add_tags(*_tags)
     _tag_group = _tags.pop if _tags.last.is_a?(Hash)
-    _tags.map { |x| add_tag(x, _tag_group || P{}) }
+    _tags.map { |x| add_tag(x, _tag_group || {}) }
   end
 
   def add_tags!(*_tags)
