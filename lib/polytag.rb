@@ -8,8 +8,8 @@ module Polytag
     base.extend(ClassMethods)
     base.has_many :polytag_tag_relations, as: :tagged, class_name: '::Polytag::TagRelation'
     base.has_many :polytag_tags, through: :polytag_tag_relations, class_name: '::Polytag::Tag'
-    base.__send__(:alias_method, :tag_relations, :polytag_tag_relations)
-    base.__send__(:alias_method, :tags, :polytag_tags)
+    base.__send__(:alias_method, :tag_relations, :polytag_tag_relations) unless base.method_defined?(:tag_relations)
+    base.__send__(:alias_method, :tags, :polytag_tags) unless base.method_defined?(:tags)
   end
 
   def tag_group(_tag_group = nil)
@@ -25,25 +25,25 @@ module Polytag
   end
 
   def add_tag(tag, _tag_group = {})
-    tags << tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first_or_initialize
+    polytag_tags << polytag_tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first_or_initialize
   end
 
   def add_tag!(tag, _tag_group = {})
-    tags << tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first_or_create
+    polytag_tags << polytag_tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first_or_create
   end
 
-  def add_tags(*tags)
-    _tag_group = tags.pop if tags.last.is_a?(Hash)
-    tags.map { |x| add_tag(x, _tag_group || P{}) }
+  def add_tags(*_tags)
+    _tag_group = _tags.pop if _tags.last.is_a?(Hash)
+    _tags.map { |x| add_tag(x, _tag_group || P{}) }
   end
 
-  def add_tags!(*tags)
-    _tag_group = tags.pop if tags.last.is_a?(Hash)
-    tags.map { |x| add_tag!(x, _tag_group || {}) }
+  def add_tags!(*_tags)
+    _tag_group = _tags.pop if _tags.last.is_a?(Hash)
+    _tags.map { |x| add_tag!(x, _tag_group || {}) }
   end
 
   def remove_tag!(tag, _tag_group = {})
-    tag_id = tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first.try(:id)
+    tag_id = polytag_tags.where(name: tag, polytag_tag_group_id: tag_group(_tag_group).try(&:id)).first.try(:id)
     tag_relations.where("polytag_tag_relations.polytag_tag_id = ?", tag_id).delete_all
   end
 
