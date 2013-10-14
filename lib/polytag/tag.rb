@@ -11,15 +11,15 @@ class Polytag::Tag < ActiveRecord::Base
   # Indiscrimanetly get
   # the tagged models
   def tagged
-    relations.tagged
+    polytag_tag_relations.tagged
   end
 
   # Cleanup group if there are
   # no more tags left on the group
   after_destroy do
-    tag_group.reload
-    if tag_group.tags.count < 0
-      tag_group.destroy
+    polytag_tag_group.reload
+    if polytag_tag_group.tags.count < 0
+      polytag_tag_group.destroy
     end
   end
 end

@@ -1,6 +1,7 @@
 require "polytag/version"
 require "polytag/tag"
 require "polytag/tag_group"
+require "polytag/tag_group/owner"
 require "polytag/tag_relation"
 
 module Polytag
