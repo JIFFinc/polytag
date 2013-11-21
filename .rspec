@@ -1,0 +1,6 @@
+--color
+--format Fuubar
+--backtrace
+--profile
+--order default
+--fail-fast
