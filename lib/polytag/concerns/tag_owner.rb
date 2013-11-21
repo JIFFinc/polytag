@@ -18,7 +18,9 @@ module Polytag
         has_many :owned_tags,
           class_name: '::Polytag::Connection',
           dependent: :destroy,
-          as: :owner
+          as: :owner do
+          include AssociationExtensions::OwnedTags
+        end
       end
 
       def tag_group

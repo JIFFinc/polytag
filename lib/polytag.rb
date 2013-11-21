@@ -13,6 +13,7 @@ require "polytag/concerns/taggable/model_helpers"
 require "polytag/concerns/taggable"
 
 # Tag Owner Concerns
+require "polytag/concerns/tag_owner/association_extensions/owned_tags"
 require "polytag/concerns/tag_owner/association_extensions"
 require "polytag/concerns/tag_owner/class_helpers"
 require "polytag/concerns/tag_owner/model_helpers"

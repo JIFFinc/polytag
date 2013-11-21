@@ -31,6 +31,16 @@ module Polytag
         alias remove del
         alias destroy del
 
+        def get(tag, args = {})
+          return false unless exist?(tag, args)
+          ::Polytag.get tag: tag,
+            tag_group: args[:tag_group],
+            owner: args[:tag_group_owner],
+            tagged: @owner,
+            foc: :first
+        end
+        alias find get
+
         def exist?(tag, args = {})
           tag = ::Polytag.get tag: tag,
             tag_group: args[:tag_group],

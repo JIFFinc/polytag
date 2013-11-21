@@ -86,4 +86,35 @@ describe "Taggable With Owner ::" do
     tags.size.should eq(1)
     tags.first.name.should eq('apple')
   end
+
+  context "Many2Many2Many Connection Hopping ::" do
+    it "Should find Owner by Tag" do
+      tag = taggable.tag.get(:apple, tag_group: :default)
+      tag.should be_a(Polytag::Connection)
+      tag.name.should eq('apple')
+      tag.tag_group.name.should eq('default')
+      tag.owner.should eq(owner)
+    end
+
+    it "Should find Tag by Owner" do
+      tag = owner.owned_tags.get(:apple).first
+      tag.should be_a(Polytag::Connection)
+      tag.name.should eq('apple')
+      tag.tag_group.name.should eq('default')
+      tag.owner.should eq(owner)
+    end
+
+    it "Should find Tag by Owner wiht a Group" do
+      taggable.tag.add(:orange, tag_group: "Fruit", tag_group_owner: owner)
+
+      tags = owner.owned_tags.get(:orange, tag_group: "Fruit")
+      tags.size.should eq(1)
+
+      tag = tags.first
+      tag.should be_a(Polytag::Connection)
+      tag.name.should eq('orange')
+      tag.tag_group.name.should eq('Fruit')
+      tag.owner.should eq(owner)
+    end
+  end
 end

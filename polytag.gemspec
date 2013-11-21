@@ -8,9 +8,9 @@ Gem::Specification.new do |spec|
   spec.version       = Polytag::VERSION
   spec.authors       = ["Kelly Becker"]
   spec.email         = ["kellylsbkr@gmail.com"]
-  spec.description   = %q{TODO: Write a gem description}
-  spec.summary       = %q{TODO: Write a gem summary}
-  spec.homepage      = ""
+  spec.description   = %q{Provides really easy tagging for rails and ActiveRecord models}
+  spec.summary       = %q{Provides really easy tagging for rails and ActiveRecord models}
+  spec.homepage      = "http://github.com/JIFFinc/polytag"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)
