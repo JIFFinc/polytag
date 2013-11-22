@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe "Taggable With Owner ::" do
   let!(:time) { Time.now.to_i }
-  let(:owner) { Owner.create }
+  let(:owner) { Owner.create(name: "test_#{time}") }
   let(:taggable) { Taggable.create(name: "test_#{time}") }
 
   before(:each) do
@@ -12,6 +12,11 @@ describe "Taggable With Owner ::" do
   it "Should create a model of Taggable" do
     taggable.name.should eq("test_#{time}")
     taggable.should be_a(Taggable)
+  end
+
+  it "Should create a model of Owner" do
+    owner.name.should eq("test_#{time}")
+    owner.should be_a(Owner)
   end
 
   context "Add a tag ::" do
@@ -104,7 +109,7 @@ describe "Taggable With Owner ::" do
       tag.owner.should eq(owner)
     end
 
-    it "Should find Tag by Owner wiht a Group" do
+    it "Should find Tag by Owner with a Group" do
       taggable.tag.add(:orange, tag_group: "Fruit", tag_group_owner: owner)
 
       tags = owner.owned_tags.get(:orange, tag_group: "Fruit")
@@ -115,6 +120,44 @@ describe "Taggable With Owner ::" do
       tag.name.should eq('orange')
       tag.tag_group.name.should eq('Fruit')
       tag.owner.should eq(owner)
+    end
+
+    context "Taggable Hopping ::" do
+      let(:owner2)    { Owner.create(name: "test_#{time}_2")}
+      let(:taggable2) { Taggable.create(name: "test_#{time}_2") }
+      let(:taggable3) { Taggable.create(name: "test_#{time}_3") }
+      let(:taggable4) { Taggable.create(name: "test_#{time}_4") }
+      let(:taggable5) { Taggable.create(name: "test_#{time}_5") }
+
+      before(:each) do
+        taggable2.tag.add(:apple, tag_group_owner: owner)
+        taggable3.tag.add(:apple, tag_group_owner: owner2)
+        taggable4.tag.add(:apple, tag_group_owner: owner2)
+        taggable4.tag.add(:apple)
+        taggable5.tag.add(:apple)
+      end
+
+      it "Should find other Taggables with the same tag" do
+        tags = taggable.tag.associated_models(:apple, tag_group_owner: owner)
+        tags.count.should eq(2)
+        tags.map(&:tagged).should include(taggable2)
+      end
+
+      it "Should find other Taggables with the same tag with different tag group and owners" do
+        tags = taggable.tag.associated_models(:apple, tag_group_owner: owner)
+        tags.count.should eq(2)
+        tags.map(&:tagged).should include(taggable2)
+
+        tags = taggable3.tag.associated_models(:apple, tag_group_owner: owner2)
+        tags.count.should eq(2)
+        tags.map(&:tagged).should include(taggable4)
+      end
+
+      it "Should not find Taggables in tag groups." do
+        tags = taggable4.tag.associated_models(:apple)
+        tags.count.should eq(2)
+        tags.map(&:tagged).should include(taggable5)
+      end
     end
   end
 end

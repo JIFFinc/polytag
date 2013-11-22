@@ -68,11 +68,11 @@ module Polytag
 
         # Get the tag group
         querydata = {owner: tag_owner, tag_group: data[:tag_group], foc: foc}
-        tag_group = get(:tag_group, foc, querydata)
+        tag_group = get(:tag_group, foc || :first, querydata)
 
         # Get the tag
         querydata = {tag: data[:tag], tag_group: tag_group, foc: foc}
-        tag       = get(:tag, foc, querydata)
+        tag       = get(:tag, foc || :first, querydata)
 
         # Create the data we are using to create the connection
         querydata = tag_owner.merge foc: foc,
@@ -85,11 +85,11 @@ module Polytag
 
         # Get the tag group
         querydata = {tag_group: data[:tag_group], foc: foc}
-        tag_group = get(:tag_group, foc, querydata)
+        tag_group = get(:tag_group, foc || :first, querydata)
 
         # Get the tag
         querydata = {tag: data[:tag], tag_group: tag_group, foc: foc}
-        tag       = get(:tag, foc, querydata)
+        tag       = get(:tag, foc || :first, querydata)
 
         # Create the data we are using to create the connection
         querydata = {}.merge foc: foc,
@@ -102,7 +102,7 @@ module Polytag
 
         # Get the tag
         querydata = {tag: data[:tag], foc: foc}
-        tag = get(:tag, foc, querydata) do |ar|
+        tag = get(:tag, foc || :first, querydata) do |ar|
           ar.where(polytag_tag_group_id: nil)
         end
 
@@ -138,6 +138,7 @@ module Polytag
           ar.where(tag_owner)
         end
       elsif data.is_a?(Hash) && data.keys.sort == [:tag, :tag_group]
+
         # Get the tag with tag group
         tag_group = get(:tag_group, foc || :first, data[:tag_group])
 
@@ -180,6 +181,13 @@ module Polytag
     end
 
     def get_tag_owner_or_taggable(result = :object, data = {})
+      result_type = nil
+
+      # Set the return result type
+      if [:taggable, :tag_owner].include?(result)
+        result_type = result
+        result = :object
+      end
 
       # Ensure result is is always set
       if result.is_a?(Hash) || result.is_a?(ActiveRecord::Base)
@@ -199,6 +207,11 @@ module Polytag
 
       # The class we need to test
       dclass = data.class
+
+      # Raise if not the type of object we want in return
+      if result_type && ! __inherits(dclass, ActiveRecord::Nase, const_get('Concerns').const_get("#{result_type}".camelize))
+        raise const_get("Not#{result_type.camelize}"), "The model #{data.inspect} doess not concern Polytag::Concerns::#{result_type.camelize}."
+      end
 
       # Ensure that the model we return is a taggable or tag owner
       if __inherits(dclass, ActiveRecord::Base, Concerns::TagOwner) || __inherits(dclass, ActiveRecord::Base, Concerns::Taggable)
