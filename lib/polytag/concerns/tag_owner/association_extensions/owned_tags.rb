@@ -4,9 +4,17 @@ module Polytag
       module AssociationExtensions
         module OwnedTags
           def get(*tags)
+            # Get the arguments of the end of the tags
+            args = tags.size > 1 && tags.last.is_a?(Hash) ? tags.pop : {}
 
             # Get the tags that are requested if they are also in a tag group from the owner
-            tag_group_ids = proxy_association.owner.tag_groups.select(:id)
+            tag_group_ids = if args.empty?
+              proxy_association.owner.tag_groups.select(:id)
+            else
+              ::Polytag.get tag_group: args[:tag_group],
+                owner: proxy_association.owner
+            end
+
             tags = ::Polytag.get(:tag, nil, tags.size == 1 ? tags.first : tags) do |ar|
               ar.where(polytag_tag_group_id: tag_group_ids)
             end
