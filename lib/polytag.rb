@@ -100,10 +100,30 @@ module Polytag
         __connection_processor(querydata)
       elsif data.is_a?(Hash) && data.keys.sort == [:tag, :tagged]
 
+        # Handle attaching tags that are already intantiated
+        if data[:tag].is_a?(Tag)
+          tag = data[:tag]
+
+          # Add the tag group and owner
+          if tag_group = tag.tag_group
+            data.merge(tag_group: tag_group)
+            if owner = tag_group.owner
+              data.merge!(owner: owner)
+            end
+          end
+
+          # Try again
+          return get(type, foc, data)
+        end
+
         # Get the tag
         querydata = {tag: data[:tag], foc: foc}
         tag = get(:tag, foc || :first, querydata) do |ar|
-          ar.where(polytag_tag_group_id: nil)
+          if __numerical_string_id?(data[:tag])
+            ar
+          else
+            ar.where(polytag_tag_group_id: nil)
+          end
         end
 
         # If we expected a result and we don't have one raise
@@ -145,14 +165,15 @@ module Polytag
         get(:tag, foc, data[:tag]) do |ar|
           ar.where(polytag_tag_group_id: tag_group.id)
         end
+      elsif type && data.is_a?(Array) && __numerical_string_ids?(data)
+        result = const_get("#{type}".camelize).where(id: data)
+        result = yield(result) if block_given?
+        return result
       elsif type && ! force_name_search && __numerical_string_id?(data)
-
-        # Force foc to be a first if the option is requested
-        foc = :first if foc
 
         result = const_get("#{type}".camelize).where(id: data.to_i)
         result = yield(result) if block_given?
-        result = result.__send__(foc) if foc
+        result = result.first if foc
         return result
       elsif type && (force_name_search || data.is_a?(String))
 
@@ -209,7 +230,7 @@ module Polytag
       dclass = data.class
 
       # Raise if not the type of object we want in return
-      if result_type && ! __inherits(dclass, ActiveRecord::Nase, const_get('Concerns').const_get("#{result_type}".camelize))
+      if result_type && ! __inherits(dclass, ActiveRecord::Base, const_get('Concerns').const_get("#{result_type}".camelize))
         raise const_get("Not#{result_type.camelize}"), "The model #{data.inspect} doess not concern Polytag::Concerns::#{result_type.camelize}."
       end
 
@@ -258,6 +279,12 @@ module Polytag
 
     def __numerical_string_id?(data)
       (data.is_a?(String) && data.match(/^\d+$/)) || data.is_a?(Fixnum)
+    end
+
+    def __numerical_string_ids?(data)
+      data.inject(true) do |result, value|
+        result && __numerical_string_id?(value)
+      end
     end
   end
 end

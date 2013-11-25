@@ -9,6 +9,11 @@ module Polytag
         def no_tag_group
           where(polytag_tag_group_id: nil, owner_type: nil, owner_id: nil)
         end
+
+        def shared_models_through_tags(type = nil)
+          result = Polytag::Connection.where(polytag_tag_id: select(:polytag_tag_id))
+          type ? result.where(tagged_type: "#{type}".camelize) : result
+        end
       end
     end
   end

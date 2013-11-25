@@ -55,7 +55,20 @@ module Polytag
         end
         alias has_tag? exist?
 
-        def shares_with(object, tag, args = {})
+        def shares_with(object, tag = nil, args = {})
+
+          # Allow passing of a hash
+          if object.is_a?(Hash)
+            args = object
+
+            object = args.delete(:object)
+            tag    = args.delete(:tag)
+          end
+
+          # Raise if we are missing the tag or object
+          unless object && tag
+            raise ArgumentError, "wrong number of arguments. We need (object_to_compare, tag, args = {}) or (args = {object: object_to_comare, tag: tag, ...})."
+          end
 
           # Ensure this is a taggable
           object = Polytag.get_tag_owner_or_taggable(:taggable, object)
@@ -79,6 +92,27 @@ module Polytag
           ::Polytag::Connection.where(polytag_tag_id: tag.select(:polytag_tag_id))
         end
         alias associated_models others_with_tag
+
+        def owned_by(object, args = {})
+          if object.is_a?(Hash)
+            args = object
+            object = args.delete(:object)
+          end
+
+          # Raise if we are missing the object
+          unless object
+            raise ArgumentError, "wrong number of arguments. We need (owner_object, args = {}) or (args = {object: owner_object, ...})."
+          end
+
+          # Ensure this is a tag owner
+          object = Polytag.get_tag_owner_or_taggable(:tag_owner, object)
+
+          # Get the hash arguments for the object in question
+          object = Polytag.get_tag_owner_or_taggable(:hash, object)
+
+          # Run a check to ensure the two object share a tag
+          @owner.tags.where(object)
+        end
       end
     end
   end
