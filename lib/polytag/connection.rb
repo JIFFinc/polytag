@@ -2,42 +2,44 @@ class Polytag::Connection < ActiveRecord::Base
   self.table_name = :polytag_connections
 
   class << self
-    def get_tagged(type = nil, id = nil)
-      r = tagged(type, id) if type
+    def get_tagged(type = nil, id = nil, polytype = :tagged)
+      scope = type ? tagged(type, id, polytype) : self
 
       # Allow block access to save ram
       if block_given?
-        r.each do |connection|
-          yield(connection.tagged)
+        scope.each do |tag_connection|
+          yield(tag_connection.__send__(polytype))
         end
       else
-        r.map(&:tagged)
+        scope.map(&polytype)
       end
     end
 
     def get_owners(type = nil, id = nil)
-      r = owner(type, id) if type
-
-      # Allow block access to save ram
-      if block_given?
-        r.each do |connection|
-          yield(connection.owner)
-        end
-      else
-        r.map(&:owner)
-      end
+      get_tagged(type, id, :owner)
     end
 
-    def tagged(type, id = nil)
-      arguments = {tagged_type: "#{type}".camelize}
-      arguments[:tagged_id] = id if id
+    def tagged(type, id = nil, polytype = :tagged)
+      # Allow passing arrays for the query data
+      type = [type] unless type.is_a?(Array)
+      id   = [id]   unless id.is_a?(Array)
+      type.map!{ |x| "#{x}".camelize }
+
+      # Remove nil values
+      type = type.compact
+      id   = id.compact
+
+      # Query arguments
+      arguments = {}
+      arguments["#{polytype}_type".to_sym] = type
+      arguments["#{polytype}_id".to_sym] = id unless id.empty?
+
+      # Eager load the polymorphics
       where(arguments)
     end
 
     def owner(type, id = nil)
-      arguments = {owner_type: "#{type}".camelize}
-      arguments[:owner_id] = id if id
-      where(arguments)
+      tagged(type, id, :owner)
     end
   end
 

@@ -11,4 +11,6 @@ class Polytag::TagGroup < ActiveRecord::Base
 
   belongs_to :owner,
     polymorphic: true
+
+  accepts_nested_attributes_for :tags
 end

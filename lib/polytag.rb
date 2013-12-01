@@ -106,7 +106,7 @@ module Polytag
 
           # Add the tag group and owner
           if tag_group = tag.tag_group
-            data.merge(tag_group: tag_group)
+            data.merge!(tag_group: tag_group)
             if owner = tag_group.owner
               data.merge!(owner: owner)
             end
