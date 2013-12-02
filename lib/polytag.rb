@@ -42,7 +42,7 @@ module Polytag
 
       # Set additional data dependent on the case
       real_data[:group] ||= :default if real_data[:owner] && !real_data[:group]
-      real_data[:owner]   = :none    if data[:owner] == :find
+      real_data[:owner]   = :none    if [:find, :guess].include?(data[:owner])
 
       # Cleanup real_data by removing nil values
       real_data = real_data.delete_if{ |k,v| v.nil? }
@@ -134,13 +134,13 @@ module Polytag
       end
 
       # Handle string parsing and string ids
-      if_a?(real_data[:group], String) do
-        is_id = string_id?(real_data[:group])
+      if_a?(real_data[:group], String) do |group|
+        is_id = string_id?(group)
 
         if options[:search] != :force && is_id
           options[:final!] = :first
           options[:retry]  = true
-          real_data[:group] = Group.find(real_data[:group])
+          real_data[:group] = Group.find(group)
           return get_group(real_data)
         else
           where.merge!(name: real_data[:group])
@@ -153,8 +153,8 @@ module Polytag
       end
 
       # Allow full hash searches
-      if_a?(real_data[:group], Hash) do
-        where.merge!(real_data[:group])
+      if_a?(real_data[:group], Hash) do |group|
+        where.merge!(group)
       end
 
       # Don't allow non-hash options for owner
@@ -163,8 +163,8 @@ module Polytag
       end
 
       # Get the data from the owner
-      if_a?(real_data[:owner], Hash) do
-        where.merge!(real_data[:owner])
+      if_a?(real_data[:owner], Hash) do |owner|
+        where.merge!(owner)
       end
 
       # Allow ownerless groups
@@ -211,8 +211,8 @@ module Polytag
       end
 
       # Handle string parsing and string ids
-      if_a?(real_data[:tag], String) do
-        is_id = string_id?(real_data[:tag])
+      if_a?(real_data[:tag], String) do |tag|
+        is_id = string_id?(tag)
 
         if options[:search] != :force && is_id
           options[:final!] = :first
@@ -220,7 +220,7 @@ module Polytag
           real_data[:tag] = Tag.find(tag)
           return get_tag(real_data)
         else
-          where.merge!(name: real_data[:tag])
+          where.merge!(name: tag)
         end
       end
 
@@ -232,18 +232,18 @@ module Polytag
       end
 
       # Group name search via symbol
-      if_a?(real_data[:tag], Symbol) do
-        where.merge!(name: real_data[:tag])
+      if_a?(real_data[:tag], Symbol) do |tag|
+        where.merge!(name: tag)
       end
 
       # Allow full hash searches
-      if_a?(real_data[:tag], Hash) do
-        where.merge!(real_data[:tag])
+      if_a?(real_data[:tag], Hash) do |tag|
+        where.merge!(tag)
       end
 
       # Get additional search criteria from the tag group
-      if_a?(real_data[:group], Group) do
-        where.merge!(polytag_group_id: real_data[:group].id)
+      if_a?(real_data[:group], Group) do |group|
+        where.merge!(polytag_group_id: group.id)
       end
 
       # Allow no group on the tag

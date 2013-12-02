@@ -19,6 +19,7 @@ module Polytag
       # Handle the adding
       # of tags via attributes
       def tags=(tags)
+
         # Require tags to be an array
         unless tags.is_a?(Array)
           tags = [tags].compact
@@ -27,7 +28,7 @@ module Polytag
         # Find/Create tags based on passed data
         tags.map! do |tag|
           if tag.is_a?(Hash) || tag.is_a?(Symbol) || tag.is_a?(String)
-            tag = ::Polytag.parse_data(tag: tag)
+            tag = ::Polytag.parse_data(tag: tag, return: :tag)
           end
 
           if tag.is_a?(::Polytag::Connection)
