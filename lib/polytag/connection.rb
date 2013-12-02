@@ -9,6 +9,10 @@ class Polytag::Connection < ActiveRecord::Base
     def get_tagged(type = nil, id = nil, polytype = :tagged)
       scope = type ? tagged(type, id, polytype) : self
 
+      # If we have multiples of the same type of connection then
+      # go group by the type and id columns in order to not return duplicates
+      scope = scope.group("polytag_connections.#{polytype}_type, polytag_connections.#{polytype}_id")
+
       # Allow block access to save ram
       if block_given?
         scope.each do |tag_connection|

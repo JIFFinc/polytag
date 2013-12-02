@@ -71,9 +71,11 @@ module Polytag
 
         def others_with_tag(tag = nil, args = {})
           # Get me the tag to search on
-          tags = get(tag, args).id
+          tags = get(tag, args)
 
-          unless tag
+          if tags.is_a?(::Polytag::Tag)
+            tags = tags.id
+          else
             begin # Verify the tagability
               tagged = ::Polytag.get_tagged(@owner, :hash)
             rescue ::Polytag::NotOwnerOrTaggable
