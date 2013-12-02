@@ -21,7 +21,4 @@ require 'polytag'
 
 # The test models
 require "#{SPEC_DIR}/support/owner"
-require "#{SPEC_DIR}/support/test_taggable_one"
-require "#{SPEC_DIR}/support/test_taggable_two"
-require "#{SPEC_DIR}/support/test_taggable_three"
-require "#{SPEC_DIR}/support/test_taggable_four"
+require "#{SPEC_DIR}/support/taggable"

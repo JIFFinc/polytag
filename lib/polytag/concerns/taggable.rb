@@ -21,34 +21,31 @@ module Polytag
       def tags=(tags)
         # Require tags to be an array
         unless tags.is_a?(Array)
-          tags = [tags]
+          tags = [tags].compact
         end
 
         # Find/Create tags based on passed data
         tags.map! do |tag|
-          if tag.is_a?(::Polytag::Tag) || tag.is_a?(::Polytag::Connection)
-           tag # Don't change anything this is all we need
-          elsif tag.is_a?(Hash)
-            tag[:owner] = tag.delete(:tag_group_owner)
-            ::Polytag.get(tag.merge(foc: :first_or_create))
-          elsif tag.is_a?(Symbol) || tag.is_a?(String)
-            ::Polytag.get(tag: tag)
+          if tag.is_a?(Hash) || tag.is_a?(Symbol) || tag.is_a?(String)
+            tag = ::Polytag.parse_data(tag: tag)
           end
-        end
 
-        # Generate the connection objects
-        tags.map! do |tag|
           if tag.is_a?(::Polytag::Connection)
-            tag # Don't change anything this is all we need
+            tag # Don't do anything (be careful)
+            # I think this doing this might
+            # disconnect the connection from another
+            # model. So again be careful with this.
           elsif tag.is_a?(::Polytag::Tag)
-            # Data to help build the connection
-            tag_group   = tag.try(:tag_group)
-            group_owner = tag_group.try(:owner)
+            group = tag.try(:group)
+            owner = group.try(:owner)
 
-            # Build the connection
-            ::Polytag::Connection.new tag: tag,
-              tag_group: tag_group,
-              owner: group_owner
+            results = ::Polytag.parse_data tag: tag,
+              final: :first_or_initialize,
+              process: :build_connection,
+              owner: owner,
+              group: group
+
+            results[:connection]
           end
         end
 

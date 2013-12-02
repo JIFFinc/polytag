@@ -8,10 +8,7 @@ module Polytag
           if tag.is_a?(::Polytag::Tag)
             ids = tag.id
           else
-            query = ::Polytag.get tag: tag,
-              tag_group: args[:tag_group],
-              owner: args[:tag_group_owner],
-              foc: nil
+            query = ::Polytag.parse_data({tag: tag, return: :tag}.merge(args)).select(:id)
 
             ids = query.select(:id)
           end

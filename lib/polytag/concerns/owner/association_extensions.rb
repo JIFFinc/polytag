@@ -1,9 +1,9 @@
 module Polytag
   module Concerns
-    module TagOwner
+    module Owner
       module AssociationExtensions
         def default
-          where(name: :default).first
+          proxy_association.owner.tag_group.add(:default)
         end
 
         def get(group)

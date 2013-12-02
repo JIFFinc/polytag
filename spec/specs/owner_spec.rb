@@ -17,14 +17,14 @@ describe "Owner ::" do
   context "Tag Groups ::" do
     it "Should find the \"default\" group" do
       tag_group = owner.tag_groups.default
-      tag_group.should be_a(::Polytag::TagGroup)
+      tag_group.should be_a(::Polytag::Group)
       tag_group.owner.should eq(owner)
       tag_group.name.should eq("default")
     end
 
     it "Should find the \"Fruit\" tag group" do
       tag_group = owner.tag_groups.get("Fruit")
-      tag_group.should be_a(::Polytag::TagGroup)
+      tag_group.should be_a(::Polytag::Group)
       tag_group.owner.should eq(owner)
       tag_group.name.should eq("Fruit")
     end
@@ -36,10 +36,10 @@ describe "Owner ::" do
       other_owner.tag_group.add_tag(:sub)
 
       tag_group = owner.tag_groups.default
-      tag_group.should be_a(::Polytag::TagGroup)
+      tag_group.should be_a(::Polytag::Group)
 
       other_tag_group = other_owner.tag_groups.default
-      other_tag_group.should be_a(::Polytag::TagGroup)
+      other_tag_group.should be_a(::Polytag::Group)
 
       tag_group.should_not eq(other_tag_group)
 
@@ -56,14 +56,14 @@ describe "Owner ::" do
   context "Owned Tags ::" do
     it "Should find the tag in the \"default\" group" do
       tag_group = owner.tag_groups.default
-      tag_group.should be_a(::Polytag::TagGroup)
+      tag_group.should be_a(::Polytag::Group)
       tag_group.owner.should eq(owner)
       tag_group.tags.map(&:name).should eq(['pizza'])
     end
 
     it "Should find the tag in the \"Fruit\" group" do
       tag_group = owner.tag_groups.get("Fruit")
-      tag_group.should be_a(::Polytag::TagGroup)
+      tag_group.should be_a(::Polytag::Group)
       tag_group.owner.should eq(owner)
       tag_group.tags.map(&:name).should eq(['apple'])
     end
@@ -73,7 +73,7 @@ describe "Owner ::" do
       owner.tag_group.add_tag(:apple)
 
       tag_group = owner.tag_groups.get("Fruit")
-      tag_group.should be_a(::Polytag::TagGroup)
+      tag_group.should be_a(::Polytag::Group)
       tag_group.owner.should eq(owner)
       tag_group.tags.map(&:name).should eq(['apple'])
     end

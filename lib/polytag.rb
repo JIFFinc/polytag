@@ -4,7 +4,7 @@ require "polytag/exceptions"
 # Real work
 require "polytag/connection"
 require "polytag/tag"
-require "polytag/tag_group"
+require "polytag/group"
 
 # Taggable Concerns
 require "polytag/concerns/taggable/association_extensions"
@@ -13,278 +13,366 @@ require "polytag/concerns/taggable/model_helpers"
 require "polytag/concerns/taggable"
 
 # Tag Owner Concerns
-require "polytag/concerns/tag_owner/association_extensions/owned_tags"
-require "polytag/concerns/tag_owner/association_extensions"
-require "polytag/concerns/tag_owner/class_helpers"
-require "polytag/concerns/tag_owner/model_helpers"
-require "polytag/concerns/tag_owner"
+require "polytag/concerns/owner/association_extensions/owned_tags"
+require "polytag/concerns/owner/association_extensions"
+require "polytag/concerns/owner/class_helpers"
+require "polytag/concerns/owner/model_helpers"
+require "polytag/concerns/owner"
 
 # Polytag Module
 module Polytag
   class << self
-    def get(type = :tag, foc = nil, data = {})
-      force_name_search = false
-      retried = false
+    def parse_data(data = {})
+      raise "Not a Hash" unless data.is_a?(Hash)
 
-      # Allow hashes to be passed
-      if type.is_a?(Hash) || type.is_a?(ActiveRecord::Base)
-        data = type
-        type = nil
-        foc  = nil
-      elsif foc.is_a?(Hash) || foc.is_a?(ActiveRecord::Base)
-        data = foc
-        foc  = nil
+      # Prepare options
+      options = {}
+      options[:final]   = data.delete(:final)   || nil
+      options[:search]  = data.delete(:search)  || nil
+      options[:retry]   = data.delete(:retry)   || nil
+      options[:process] = data.delete(:process) || nil
+      options[:return]  = data.delete(:return)  || nil
+
+      # Actual data
+      real_data = {}
+      real_data[:owner]   = data.delete(:owner)  || nil
+      real_data[:tagged]  = data.delete(:tagged) || nil
+      real_data[:group]   = data.delete(:group)  || nil
+      real_data[:tag]     = data.delete(:tag)    || nil
+
+      # Set additional data dependent on the case
+      real_data[:group] ||= :default if real_data[:owner] && !real_data[:group]
+      real_data[:owner]   = :none    if data[:owner] == :find
+
+      # Cleanup real_data by removing nil values
+      real_data = real_data.delete_if{ |k,v| v.nil? }
+
+      # Get connections that we need
+      get_owner(real_data)
+      get_tagged(real_data)
+
+      # Get the group and tag
+      get_group(real_data, options)
+      get_tag(real_data, options)
+
+      # Create a connection to a tag if applicable
+      create_connection(real_data, options)
+
+      # Return the data requested
+      return real_data[options[:return]] if options[:return]
+      return real_data
+    end
+    alias get parse_data
+
+    def get_owner(real_data, result = :hash)
+      get_tagged(real_data, result, :owner)
+    end
+
+    def get_tagged(real_data, result = :hash, type = :tagged)
+      real_data = {type => real_data} unless real_data.is_a?(Hash)
+      return false unless real_data[type]
+      klass = real_data[type]
+      success = false
+
+      # Parse hash to get get the real object
+      # so we might continue
+      if_a?(klass, Hash) do
+        # Get keys to search through
+        keys = klass.keys.map(&:to_s).uniq
+        localized = keys.map{ |x| x.match(/^#{type}\_/) }
+
+        # Get localized model
+        if localized.uniq.include?(true)
+          type  = klass["#{type}_type"] || klass["#{type}_type".to_sym]
+          id    = klass["#{type}_id"]   || klass["#{type}_id".to_sym]
+          klass = "#{type}".camelize.constantize.find(id)
+        end
+
+        # Get broader model
+        if keys.map { |x| x == 'type' }.uniq.include?(true)
+          type  = klass['type'] || klass[:type]
+          id    = klass['id']   || klass[:id]
+          klass = "#{type}".camelize.constantize.find(id)
+        end
       end
 
-      # Reject nil or false data keys
-      # also grab the foc value
-      if data.is_a?(Hash)
-        data = data.delete_if { |k, v| v.nil? || v == false }
-        foc  = data.delete(:foc) if data.has_key?(:foc)
-        data[:tag_group] = :default if data[:owner] && ! data[:tag_group]
-      end
+      if_a?(klass, ActiveRecord::Base) do
+        # Ensure we are good to go with this
+        good     = if_a?(klass, Concerns::Taggable)
+        if good || if_a?(klass, Concerns::Owner)
+          success = true # Hell yah
 
-      # Ensure that we are processing the right data if the data comes in in a unexpected way
-      if data.is_a?(Hash) && data.keys.size == 1 && [:tag, :tag_group].include?(data.keys.first)
-        type = data.keys.first
-        data = data[data.keys.first]
-      end
-
-      # Return the model if the model passed matches
-      if data.is_a?(ActiveRecord::Base)
-        return data if data.instance_of?(Tag) && (type ? type == :tag : true)
-        return data if data.instance_of?(TagGroup) && (type ? type == :tag_group : true)
-        return data if data.instance_of?(Connection) && (type ? type == :connection : true)
-        raise NotAPolytagModel, "#{data.inspect} is not a Polytag model in the requested form."
-      elsif data.is_a?(String) || data.is_a?(Symbol)
-        data = "#{data}".strip
-      end
-
-      # Handle how the results are returned
-      if data.is_a?(Hash) && data.keys.sort == [:owner, :tag, :tag_group, :tagged]
-
-        # Get the tag owner
-        tag_owner = get_tag_owner_or_taggable(:hash, data[:owner])
-
-        # Get the tag group
-        querydata = {owner: tag_owner, tag_group: data[:tag_group], foc: foc}
-        tag_group = get(:tag_group, foc || :first, querydata)
-
-        # Get the tag
-        querydata = {tag: data[:tag], tag_group: tag_group, foc: foc}
-        tag       = get(:tag, foc || :first, querydata)
-
-        # Create the data we are using to create the connection
-        querydata = tag_owner.merge foc: foc,
-          polytag_tag_id: tag.id,
-          polytag_tag_group_id: tag_group.id,
-          tagged: data[:tagged]
-
-        __connection_processor(querydata)
-      elsif data.is_a?(Hash) && data.keys.sort == [:tag, :tag_group, :tagged]
-
-        # Get the tag group
-        querydata = {tag_group: data[:tag_group], foc: foc}
-        tag_group = get(:tag_group, foc || :first, querydata)
-
-        # Get the tag
-        querydata = {tag: data[:tag], tag_group: tag_group, foc: foc}
-        tag       = get(:tag, foc || :first, querydata)
-
-        # Create the data we are using to create the connection
-        querydata = {}.merge foc: foc,
-          polytag_tag_group_id: tag_group.id,
-          polytag_tag_id: tag.id,
-          tagged: data[:tagged]
-
-        __connection_processor(querydata)
-      elsif data.is_a?(Hash) && data.keys.sort == [:tag, :tagged]
-
-        # Handle attaching tags that are already intantiated
-        if data[:tag].is_a?(Tag)
-          tag = data[:tag]
-
-          # Add the tag group and owner
-          if tag_group = tag.tag_group
-            data.merge!(tag_group: tag_group)
-            if owner = tag_group.owner
-              data.merge!(owner: owner)
-            end
+          # Prepare the return result
+          real_data[type] = case result
+          when :hash
+            {
+              "#{type}_type".to_sym => "#{klass.class}",
+              "#{type}_id".to_sym   => klass.id,
+            }
+          when :object, :model
+            klass
           end
-
-          # Try again
-          return get(type, foc, data)
+        else
+          raise NotOwnerOrTaggable,
+            "Not a Polytag::Concerns::Taggable or Polytag::Concerns::Owner."
         end
+      end
 
-        # Get the tag
-        querydata = {tag: data[:tag], foc: foc}
-        tag = get(:tag, foc || :first, querydata) do |ar|
-          if __numerical_string_id?(data[:tag])
-            ar
-          else
-            ar.where(polytag_tag_group_id: nil)
-          end
+      # Return the object in whatever form requested
+      success ? real_data[type] : false
+    end
+
+    def get_group(real_data, options = {})
+      return false unless real_data[:group]
+      where = {}
+
+      # If we have the tag group already just return
+      if_a?(real_data[:group], Group) do |group|
+        real_data[:owner] = group.owner
+        get_owner(real_data)
+        return group.id # Nothing else to process
+      end
+
+      # Handle string parsing and string ids
+      if_a?(real_data[:group], String) do
+        is_id = string_id?(real_data[:group])
+
+        if options[:search] != :force && is_id
+          options[:final!] = :first
+          options[:retry]  = true
+          real_data[:group] = Group.find(real_data[:group])
+          return get_group(real_data)
+        else
+          where.merge!(name: real_data[:group])
         end
+      end
 
-        # If we expected a result and we don't have one raise
-        raise CantFindPolytagModel if foc && ! tag
+      # Group name search via symbol
+      if_a?(real_data[:group], Symbol) do |name|
+        where.merge!(name: name) unless name == :ignore
+      end
 
-        # Create the data we are using to create the connection
-        querydata = {}.merge foc: foc,
-          polytag_tag_group_id: nil,
-          polytag_tag_id: tag.id,
-          tagged: data[:tagged]
+      # Allow full hash searches
+      if_a?(real_data[:group], Hash) do
+        where.merge!(real_data[:group])
+      end
 
-        __connection_processor(querydata)
-      elsif data.is_a?(Hash) && data.keys.sort == [:owner, :tag, :tag_group]
+      # Don't allow non-hash options for owner
+      if_a?(real_data[:owner], Concerns::Owner) do
+        get_owner(real_data)
+      end
 
-        # Get the tag owner
-        tag_owner = get_tag_owner_or_taggable(data[:owner])
+      # Get the data from the owner
+      if_a?(real_data[:owner], Hash) do
+        where.merge!(real_data[:owner])
+      end
 
-        # Get the tag group
-        querydata = {owner: tag_owner, tag_group: data[:tag_group], foc: foc}
-        tag_group = get(:tag_group, foc || :first, querydata)
+      # Allow ownerless groups
+      if_a?(real_data[:owner], NilClass) do
+        where.merge!(owner_type: nil, owner_id: nil)
+      end
 
-        # Get the tag
-        querydata = {tag: data[:tag], tag_group: tag_group, foc: foc}
-        tag       = get(:tag, foc, querydata)
+      # Get the tag group and allow custom queries
+      result = Group.where(where)
+      result = yield(result) if block_given?
 
-        return tag
-      elsif data.is_a?(Hash) && data.keys.sort == [:owner, :tag_group]
-        # Get the tag group with owner
-        tag_owner = get_tag_owner_or_taggable(:hash, data[:owner])
-
-        get(:tag_group, foc, data[:tag_group]) do |ar|
-          ar.where(tag_owner)
-        end
-      elsif data.is_a?(Hash) && data.keys.sort == [:tag, :tag_group]
-
-        # Get the tag with tag group
-        tag_group = get(:tag_group, foc || :first, data[:tag_group])
-
-        get(:tag, foc, data[:tag]) do |ar|
-          ar.where(polytag_tag_group_id: tag_group.id)
-        end
-      elsif type && data.is_a?(Array) && __numerical_string_ids?(data)
-        result = const_get("#{type}".camelize).where(id: data)
-        result = yield(result) if block_given?
-        return result
-      elsif type && ! force_name_search && __numerical_string_id?(data)
-
-        result = const_get("#{type}".camelize).where(id: data.to_i)
-        result = yield(result) if block_given?
-        result = result.first if foc
-        return result
-      elsif type && (force_name_search || data.is_a?(String))
-
-        result = const_get("#{type}".camelize).where(name: data)
-        result = yield(result) if block_given?
-        result = result.__send__(foc) if foc
-        return result
+      # Run the final method (usually first or first_or_create)
+      final  = options[:final!] || options[:final]
+      result = result.__send__(final) if final
+      real_data[:group] = result # Return the final result
+    rescue ActiveRecord::RecordNotFound
+      if options[:retry]
+        options[:final!] = nil
+        options[:search] = :force
+        options[:retry]  = nil
+        retry
       else
-        raise CantFindPolytagModel, "Can't find a polytag model with #{data.inspect}."
+        raise
       end
-    rescue ActiveRecord::RecordNotFound => e
-      raise e if e.instance_of?(CantFindPolytagModel) || retried
-      force_name_search = true
-      retried = true
-      foc = :first
-      retry
     end
 
-    def tag_group_owner?(owner = {}, raise_on_error = false)
-      owner = get_polymorphic(owner)
-      return true if __inherits(data.class, ActiveRecord::Base, Concerns::TagOwner)
-      raise NotTagOwner, "This model #{owner.inspect} is not a polytag tag owner."
-    rescue NotTagOwner, NotTagOwnerOrTaggable => e
-      raise e unless raise_on_error
-      false
-    end
+    def get_tag(real_data, options = {})
+      return false unless real_data[:tag]
+      where = {}
 
-    def get_tag_owner_or_taggable(result = :object, data = {})
-      result_type = nil
-
-      # Set the return result type
-      if [:taggable, :tag_owner].include?(result)
-        result_type = result
-        result = :object
-      end
-
-      # Ensure result is is always set
-      if result.is_a?(Hash) || result.is_a?(ActiveRecord::Base)
-        data   = result
-        result = :object
-      end
-
-      if data.is_a?(Hash)
-        data = if data.keys.sort == [:id, :type]
-          data[:type].camelize.constantize.find(data[:id])
-        elsif data.keys.sort == [:owner_id, :owner_type]
-          data[:owner_type].camelize.constantize.find(data[:owner_id])
-        elsif data.keys.sort == [:tagged_id, :tagged_type]
-          data[:tagged_type].camelize.constantize.find(data[:tagged_id])
+      # Allow processing of arrays
+      if_a?(real_data[:tag], Array) do |tags|
+        if tags.inject(true) { |o, v| o && string_id?(v) }
+          where.merge!(id: tags.map(&:to_i))
+        elsif tags.inject(true) { |o, v| o && (v.is_a?(String) || v.is_a?(Symbol))}
+          where.merge!(name: tags.map(&:to_s))
         end
       end
 
-      # The class we need to test
-      dclass = data.class
-
-      # Raise if not the type of object we want in return
-      if result_type && ! __inherits(dclass, ActiveRecord::Base, const_get('Concerns').const_get("#{result_type}".camelize))
-        raise const_get("Not#{result_type.camelize}"), "The model #{data.inspect} doess not concern Polytag::Concerns::#{result_type.camelize}."
+      # Allow processing of fixnums
+      if_a?(real_data[:tag], Fixnum) do |tag|
+        real_data[:tag] = Tag.find(tag)
+        return get_tag(real_data)
       end
 
-      # Ensure that the model we return is a taggable or tag owner
-      if __inherits(dclass, ActiveRecord::Base, Concerns::TagOwner) || __inherits(dclass, ActiveRecord::Base, Concerns::Taggable)
+      # Handle string parsing and string ids
+      if_a?(real_data[:tag], String) do
+        is_id = string_id?(real_data[:tag])
 
-        # Return hash options for the type
-        if result == :hash
-          if __inherits(dclass, ActiveRecord::Base, Concerns::TagOwner)
-            return {owner_type: "#{dclass}", owner_id: data.id}
-          elsif __inherits(dclass, ActiveRecord::Base, Concerns::Taggable)
-            return {tagged_type: "#{dclass}", tagged_id: data.id}
-          end
+        if options[:search] != :force && is_id
+          options[:final!] = :first
+          options[:retry]  = true
+          real_data[:tag] = Tag.find(tag)
+          return get_tag(real_data)
+        else
+          where.merge!(name: real_data[:tag])
+        end
+      end
+
+      # If we have the tag already just return
+      if_a?(real_data[:tag], Tag) do |tag|
+        real_data[:group] = tag.group
+        get_group(real_data)
+        return real_data[:tag].id # Nothing to process
+      end
+
+      # Group name search via symbol
+      if_a?(real_data[:tag], Symbol) do
+        where.merge!(name: real_data[:tag])
+      end
+
+      # Allow full hash searches
+      if_a?(real_data[:tag], Hash) do
+        where.merge!(real_data[:tag])
+      end
+
+      # Get additional search criteria from the tag group
+      if_a?(real_data[:group], Group) do
+        where.merge!(polytag_group_id: real_data[:group].id)
+      end
+
+      # Allow no group on the tag
+      if_a?(real_data[:group], NilClass) do
+        where.merge!(polytag_group_id: nil)
+      end
+
+      # Get the tag and allow custom queries
+      result = Tag.where(where)
+      result = yield(result) if block_given?
+
+      # Run the final method (usually first or first_or_create)
+      final  = options[:final!] || options[:final]
+      result = result.__send__(final) if final
+      real_data[:tag] = result # Return the final result
+    rescue ActiveRecord::RecordNotFound
+      if options[:retry]
+        options[:final!] = nil
+        options[:search] = :force
+        options[:retry]  = nil
+        retry
+      else
+        raise
+      end
+    end
+
+    def create_connection(real_data, options = {})
+      return false if ! real_data[:tagged] && options[:process] != :build_connection
+      return false unless real_data[:tag]
+      where = {}
+
+      unless options[:process] == :build_connection
+        # Require that we have hash arguments for the owners
+        if_a?(real_data[:tagged], Concerns::Taggable) do
+          get_tagged(real_data)
         end
 
-        # Return the raw object
-        return data if result == :object
+        # Set the tagged items columns
+        if_a?(real_data[:tagged], Hash) do
+          where.merge!(real_data[:tagged])
+        end
+
+         # Require a tagged class to create a connection
+        if_a?(real_data[:tagged], NilClass) do
+          raise "Can't create a connection without a tagged."
+        end
       end
 
-      # Raise if not a taggable or tag owner object
-      raise NotTagOwnerOrTaggable, "The model #{data.inspect} is not a polytag tag owner or taggable model."
+      # Connect the tag to the connection
+      if_a?(real_data[:tag], Tag) do |tag|
+        real_data[:group] = tag.group
+        get_group(real_data)
+        where.merge!(polytag_tag_id: real_data[:tag].id)
+      end
+
+      # Require a tag to connect to the tagged class
+      if_a?(real_data[:tag], NilClass) do
+        raise "Can't connect a taggable to a tag without a tag."
+      end
+
+      # Apply a group to the connection conditions
+      if_a?(real_data[:group], Group) do |group|
+        real_data[:owner] = group.owner
+        get_owner(real_data)
+        where.merge!(polytag_group_id: real_data[:group].id)
+      end
+
+      # Allow tag connections without groups
+      if_a?(real_data[:group], NilClass) do
+        where.merge!(polytag_group_id: nil)
+      end
+
+      # Get the hash arguments for the owner
+      if_a?(real_data[:owner], Concerns::Owner) do
+        get_owner(real_data)
+      end
+
+      # Apply the hash arguments for the owner
+      if_a?(real_data[:owner], Hash) do
+        where.merge!(real_data[:owner])
+      end
+
+      # Allow ownerless tag connections
+      if_a?(real_data[:owner], NilClass) do
+        where.merge!(owner_type: nil, owner_id: nil)
+      end
+
+      # Get the tag and allow custom queries
+      result = Connection.where(where)
+      result = yield(result) if block_given?
+
+      # Run the final method (usually first or first_or_create)
+      final  = options[:final!] || options[:final]
+      result = result.__send__(final) if final
+      real_data[:connection] = result # Return the final result
+    rescue ActiveRecord::RecordNotFound
+      if options[:retry]
+        options[:final!] = nil
+        options[:retry]  = nil
+        retry
+      else
+        raise
+      end
     end
 
     private
 
-    def __inherits(klass, *ancestors)
-      ancestors.inject(true) do |result, ancestor|
-        result && klass.ancestors.include?(ancestor)
+    def if_a?(original_klass, *ancestors)
+
+      # Ensure we have the actual classes to work with not objects
+      klass = "#{original_klass.class}" == 'Class' ? "#{original_klass}" : "#{original_klass.class}"
+      klass = klass.constantize
+
+      # Check for ancestory
+      result = ancestors.inject(true) do |value, ancestor|
+        value && klass.ancestors.include?(ancestor)
       end
-    end
 
-    def __connection_processor(data)
-      foc = data.delete(:foc)
+      # Yield on true
+      if result && block_given?
+        return yield(original_klass)
+      end
 
-      # Get the item we are trying to tag
-      taggable  = get_tag_owner_or_taggable(:hash, data.delete(:tagged))
-
-      # Get the connection where statement
-      connection_hash = data.merge(taggable)
-
-      # Find the object and create it if applicable
-      result = Connection.where(connection_hash)
-      result = result.__send__(foc) if foc
+      # Return the result
       result
     end
 
-    def __numerical_string_id?(data)
+    def string_id?(data)
       (data.is_a?(String) && data.match(/^\d+$/)) || data.is_a?(Fixnum)
-    end
-
-    def __numerical_string_ids?(data)
-      data.inject(true) do |result, value|
-        result && __numerical_string_id?(value)
-      end
     end
   end
 end

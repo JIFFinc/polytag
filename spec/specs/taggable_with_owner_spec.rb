@@ -6,7 +6,7 @@ describe "Taggable With Owner ::" do
   let(:taggable) { Taggable.create(name: "test_#{time}") }
 
   before(:each) do
-    taggable.tag.add(:apple, tag_group_owner: owner)
+    taggable.tag.add(:apple, owner: owner)
   end
 
   it "Should create a model of Taggable" do
@@ -25,12 +25,12 @@ describe "Taggable With Owner ::" do
 
       tags.size.should eq(1)
       tags.first.name.should eq('apple')
-      tags.first.tag_group.name.should eq('default')
-      tags.first.tag_group.owner.should eq(owner)
+      tags.first.group.name.should eq('default')
+      tags.first.group.owner.should eq(owner)
     end
 
     it "Should find the tag via has_tag?" do
-      taggable.tag.has_tag?(:apple, tag_group_owner: owner).should be_true
+      taggable.tag.has_tag?(:apple, owner: owner).should be_true
     end
 
     context "Add another tag ::" do
@@ -52,11 +52,11 @@ describe "Taggable With Owner ::" do
         tags.size.should eq(2) # Should see both
 
         # Get only the tags attached to the owner
-        tags = tags.tag_group(tag_group_owner: owner)
+        tags = tags.tag_group(owner: owner)
         tags.size.should eq(1) # Now the constainst is applied we should see less.
         tags.map(&:name).should eq(['apple'])
-        tags.first.tag_group.owner.should eq(owner)
-        tags.first.tag_group.should eq(owner.tag_groups.default)
+        tags.first.group.owner.should eq(owner)
+        tags.first.group.should eq(owner.tag_groups.default)
       end
 
       it "and find both tags" do
@@ -74,7 +74,7 @@ describe "Taggable With Owner ::" do
       end
 
       it "and it Should delete the original with an owner constraint" do
-        taggable.tag.del(:apple, tag_group_owner: owner)
+        taggable.tag.del(:apple, owner: owner)
 
         tags = taggable.tags(true)
         tags.size.should eq(1)
@@ -84,7 +84,7 @@ describe "Taggable With Owner ::" do
   end
 
   it "Should find model by tag" do
-    taggables = Taggable.has_tag(:apple, tag_group_owner: owner)
+    taggables = Taggable.has_tag(:apple, owner: owner)
     taggables.size.should eq(1)
     taggables.should include(taggable)
     tags = taggables.first.tags
@@ -94,10 +94,13 @@ describe "Taggable With Owner ::" do
 
   context "Many2Many2Many Connection Hopping ::" do
     it "Should find Owner by Tag" do
-      tag = taggable.tag.get(:apple, tag_group: :default)
+      tag = taggable.tag.get :apple,
+        return: :connection,
+        owner: :find
+
       tag.should be_a(Polytag::Connection)
       tag.name.should eq('apple')
-      tag.tag_group.name.should eq('default')
+      tag.group.name.should eq('default')
       tag.owner.should eq(owner)
     end
 
@@ -105,20 +108,20 @@ describe "Taggable With Owner ::" do
       tag = owner.owned_tags.get(:apple).first
       tag.should be_a(Polytag::Connection)
       tag.name.should eq('apple')
-      tag.tag_group.name.should eq('default')
+      tag.group.name.should eq('default')
       tag.owner.should eq(owner)
     end
 
     it "Should find Tag by Owner with a Group" do
-      taggable.tag.add(:orange, tag_group: "Fruit", tag_group_owner: owner)
+      taggable.tag.add(:orange, group: "Fruit", owner: owner)
 
-      tags = owner.owned_tags.get(:orange, tag_group: "Fruit")
+      tags = owner.owned_tags.get(:orange, group: "Fruit")
       tags.size.should eq(1)
 
       tag = tags.first
       tag.should be_a(Polytag::Connection)
       tag.name.should eq('orange')
-      tag.tag_group.name.should eq('Fruit')
+      tag.group.name.should eq('Fruit')
       tag.owner.should eq(owner)
     end
 
@@ -130,25 +133,25 @@ describe "Taggable With Owner ::" do
       let(:taggable5) { Taggable.create(name: "test_#{time}_5") }
 
       before(:each) do
-        taggable2.tag.add(:apple, tag_group_owner: owner)
-        taggable3.tag.add(:apple, tag_group_owner: owner2)
-        taggable4.tag.add(:apple, tag_group_owner: owner2)
+        taggable2.tag.add(:apple, owner: owner)
+        taggable3.tag.add(:apple, owner: owner2)
+        taggable4.tag.add(:apple, owner: owner2)
         taggable4.tag.add(:apple)
         taggable5.tag.add(:apple)
       end
 
       it "Should find other Taggables with the same tag" do
-        tags = taggable.tag.associated_models(:apple, tag_group_owner: owner)
+        tags = taggable.tag.associated_models(:apple, owner: owner)
         tags.count.should eq(2)
         tags.map(&:tagged).should include(taggable2)
       end
 
       it "Should find other Taggables with the same tag with different tag group and owners" do
-        tags = taggable.tag.associated_models(:apple, tag_group_owner: owner)
+        tags = taggable.tag.associated_models(:apple, owner: owner)
         tags.count.should eq(2)
         tags.map(&:tagged).should include(taggable2)
 
-        tags = taggable3.tag.associated_models(:apple, tag_group_owner: owner2)
+        tags = taggable3.tag.associated_models(:apple, owner: owner2)
         tags.count.should eq(2)
         tags.map(&:tagged).should include(taggable4)
       end

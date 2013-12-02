@@ -1,3 +1,3 @@
 class Owner < ActiveRecord::Base
-  include Polytag::Concerns::TagOwner
+  include Polytag::Concerns::Owner
 end

@@ -3,9 +3,10 @@ class Polytag::Tag < ActiveRecord::Base
 
   has_many :tag_connections,
     class_name: '::Polytag::Connection',
-    foreign_key: :polytag_tag_id
+    foreign_key: :polytag_tag_id,
+    dependent: :destroy
 
-  belongs_to :tag_group,
-    class_name: '::Polytag::TagGroup',
-    foreign_key: :polytag_tag_group_id
+  belongs_to :group,
+    class_name: '::Polytag::Group',
+    foreign_key: :polytag_group_id
 end

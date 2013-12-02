@@ -1,6 +1,6 @@
 module Polytag
   module Concerns
-    module TagOwner
+    module Owner
       extend ActiveSupport::Concern
 
       module ClassMethods
@@ -9,7 +9,7 @@ module Polytag
 
       included do
         has_many :tag_groups,
-          class_name: '::Polytag::TagGroup',
+          class_name: '::Polytag::Group',
           dependent: :destroy,
           as: :owner do
           include AssociationExtensions
@@ -25,25 +25,23 @@ module Polytag
 
       # Handle the adding
       # of tag groups via attributes
-      def tag_groups=(tag_groups)
+      def tag_groups=(groups)
         # Require tag groups to be an array
-        unless tag_groups.is_a?(Array)
-          tag_groups = [tag_groups]
+        unless groups.is_a?(Array)
+          groups = [groups].compact
         end
 
         # Find/Create tag groups based on passed data
-        tag_groups.map! do |tag_group|
-          if tag_group.is_a?(::Polytag::TagGroup)
-            tag_group # Don't change anything this is all we need
-          elsif tag_group.is_a?(Hash)
-            Polytag::TagGroup.new(tag_group)
-          elsif tag_group.is_a?(Symbol) || tag_group.is_a?(String)
-            Polytag::TagGroup.new(name: tag_group)
+        groups.map! do |group|
+          if group.is_a?(::Polytag::Group)
+            group # Don't change anything this is all we need
+          elsif group.is_a?(Hash) || group.is_a?(Symbol) || group.is_a?(String)
+            ::Polytag.parse_data(group: group)
           end
         end
 
         # Hell yah go add those bitches
-        super(tag_groups.compact)
+        super(groups.compact)
       end
 
       def tag_group
