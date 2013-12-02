@@ -275,7 +275,9 @@ module Polytag
       return false unless real_data[:tag]
       where = {}
 
-      unless options[:process] == :build_connection
+      if options[:process] == :build_connection
+        where.merge!(tagged_type: nil, tagged_id: nil)
+      else
         # Require that we have hash arguments for the owners
         if_a?(real_data[:tagged], Concerns::Taggable) do
           get_tagged(real_data)

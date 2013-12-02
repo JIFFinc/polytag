@@ -27,7 +27,7 @@ module Polytag
 
         # Find/Create tags based on passed data
         tags.map! do |tag|
-          if tag.is_a?(Hash) || tag.is_a?(Symbol) || tag.is_a?(String)
+          if tag.is_a?(Hash) || tag.is_a?(Symbol) || tag.is_a?(String) || tag.is_a?(Numeric)
             tag = ::Polytag.parse_data(tag: tag, return: :tag)
           end
 
