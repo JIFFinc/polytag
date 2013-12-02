@@ -1,0 +1,7 @@
+machine:
+  ruby:
+    version:
+      2.0.0-p353
+database:
+  override:
+    - echo "No database to load using SQLite3 in :memory:"
