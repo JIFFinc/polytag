@@ -212,7 +212,7 @@ module Polytag
 
       # Handle string parsing and string ids
       if_a?(real_data[:tag], String) do |tag|
-        is_id = string_id?(tag)
+        is_id = false#string_id?(tag)  # NOTE: forced false because we have legitimate numeric values as strings -John
 
         if options[:search] != :force && is_id
           options[:final!] = :first

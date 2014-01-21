@@ -1,35 +1,36 @@
 require 'spec_helper'
 
-describe "Owner ::" do
+describe("Owner ::") do
   let!(:time) { Time.now.to_i }
   let(:owner) { Owner.create(name: "test_#{time}") }
+  let(:pizza_tag) { owner.tag_group.add_tag(:pizza) }
 
   before(:each) do
-    owner.tag_group.add_tag(:pizza)
+    pizza_tag
     owner.tag_group.add_tag(:apple, "Fruit")
   end
 
-  it "Should create a model of Owner" do
+  it("Should create a model of Owner") do
     owner.name.should eq("test_#{time}")
     owner.should be_a(Owner)
   end
 
-  context "Tag Groups ::" do
-    it "Should find the \"default\" group" do
+  context("Tag Groups ::") do
+    it("Should find the \"default\" group") do
       tag_group = owner.tag_groups.default
       tag_group.should be_a(::Polytag::Group)
       tag_group.owner.should eq(owner)
       tag_group.name.should eq("default")
     end
 
-    it "Should find the \"Fruit\" tag group" do
+    it("Should find the \"Fruit\" tag group") do
       tag_group = owner.tag_groups.get("Fruit")
       tag_group.should be_a(::Polytag::Group)
       tag_group.owner.should eq(owner)
       tag_group.name.should eq("Fruit")
     end
 
-    it "Should allow a tag group with the same name on other owners" do
+    it("Should allow a tag group with the same name on other owners") do
       other_owner = Owner.create
 
       # Create a tag (which also creates a tag group)
@@ -53,15 +54,20 @@ describe "Owner ::" do
     end
   end
 
-  context "Owned Tags ::" do
-    it "Should find the tag in the \"default\" group" do
+  context("Owned Tags ::") do
+    it("Should not find tag by id when string appears to be id") do
+      tag = owner.tag_group.add_tag("#{pizza_tag.id}", "counts")
+      expect(tag).to_not eq(pizza_tag)
+    end
+
+    it("Should find the tag in the \"default\" group") do
       tag_group = owner.tag_groups.default
       tag_group.should be_a(::Polytag::Group)
       tag_group.owner.should eq(owner)
       tag_group.tags.map(&:name).should eq(['pizza'])
     end
 
-    it "Should find the tag in the \"Fruit\" group" do
+    it("Should find the tag in the \"Fruit\" group") do
       tag_group = owner.tag_groups.get("Fruit")
       tag_group.should be_a(::Polytag::Group)
       tag_group.owner.should eq(owner)
@@ -69,7 +75,7 @@ describe "Owner ::" do
     end
 
     # Adding this spec because it was a problem in testing
-    it "Should allow tags with the same name in other groups" do
+    it("Should allow tags with the same name in other groups") do
       owner.tag_group.add_tag(:apple)
 
       tag_group = owner.tag_groups.get("Fruit")
@@ -79,16 +85,16 @@ describe "Owner ::" do
     end
   end
 
-  context "Finder Methods ::" do
-    it "Should find the owner by Tag Group" do
+  context("Finder Methods ::") do
+    it("Should find the owner by Tag Group") do
       @owners = Owner.has_tag_group('default')
     end
 
-    it "Should find the owner by Tag without Tag Group (even if the tag is in a group)" do
+    it("Should find the owner by Tag without Tag Group (even if the tag is in a group)") do
       @owners = Owner.has_tag('apple')
     end
 
-    it "Should find the owner by Tag with Tag Group" do
+    it("Should find the owner by Tag with Tag Group") do
       @owners = Owner.has_tag('apple', 'Fruit')
     end
 
