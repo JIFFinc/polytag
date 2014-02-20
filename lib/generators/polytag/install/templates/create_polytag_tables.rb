@@ -23,15 +23,31 @@ class CreatePolytagTables < ActiveRecord::Migration
       t.timestamps
     end
 
-    # Index for the category and name
+    # Polytag::Tag indexes
+    add_index :polytag_tags, :polytag_group_id
+    add_index :polytag_tags, :name
+
     add_index :polytag_tags, [:polytag_group_id, :name],
       name: :polytag_tags_unique,
       unique: true
+
+    # Polytag::Group indexes
+    add_index :polytag_groups, :owner_type
+    add_index :polytag_groups, :owner_id
+    add_index :polytag_groups, :name
 
     add_index :polytag_groups,
       [:owner_type, :owner_id, :name],
       name: :polytag_groups_unique,
       unique: true
+
+    # Polytag::Connection indexes
+    add_index :polytag_connections, :polytag_tag_id
+    add_index :polytag_connections, :polytag_group_id
+    add_index :polytag_connections, :owner_type
+    add_index :polytag_connections, :owner_id
+    add_index :polytag_connections, :tagged_type
+    add_index :polytag_connections, :tagged_id
 
     add_index :polytag_connections,
       [:polytag_tag_id, :polytag_group_id, :owner_type, :owner_id, :tagged_type, :tagged_id],

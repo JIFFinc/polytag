@@ -1,6 +1,14 @@
 class Polytag::Connection < ActiveRecord::Base
   self.table_name = :polytag_connections
 
+  validates_uniqueness_of :polytag_tag_id, scope: [
+    :polytag_group_id,
+    :owner_type,
+    :owner_id,
+    :tagged_type,
+    :tagged_id
+  ]
+
   class << self
     def get_owners(type = nil, id = nil)
       get_tagged(type, id, :owner)

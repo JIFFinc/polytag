@@ -9,4 +9,6 @@ class Polytag::Tag < ActiveRecord::Base
   belongs_to :group,
     class_name: '::Polytag::Group',
     foreign_key: :polytag_group_id
+
+  validates_uniqueness_of :polytag_group_id, scope: :name
 end
