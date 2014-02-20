@@ -22,21 +22,6 @@ class CreatePolytagTables < ActiveRecord::Migration
       t.belongs_to :tagged, polymorphic: true, index: true
       t.timestamps
     end
-
-    # Index for the category and name
-    add_index :polytag_tags, [:polytag_group_id, :name],
-      name: :polytag_tags_unique,
-      unique: true
-
-    add_index :polytag_groups,
-      [:owner_type, :owner_id, :name],
-      name: :polytag_groups_unique,
-      unique: true
-
-    add_index :polytag_connections,
-      [:polytag_tag_id, :polytag_group_id, :owner_type, :owner_id, :tagged_type, :tagged_id],
-      name: :polytag_connections_unique,
-      unique: true
   end
 
   def self.down

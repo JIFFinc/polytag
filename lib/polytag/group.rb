@@ -14,4 +14,9 @@ class Polytag::Group < ActiveRecord::Base
     polymorphic: true
 
   accepts_nested_attributes_for :tags
+
+  validates_uniqueness_of :name, scope: [
+    :owner_type,
+    :owner_id
+  ]
 end
